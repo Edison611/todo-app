@@ -1,6 +1,7 @@
 
 "use client";
 import React, { useState, useEffect } from "react";
+import { FaPencilAlt } from "react-icons/fa";
 
 export type TodoItem = {
   id: number;
@@ -26,8 +27,9 @@ function Home() {
   const [priority, setPriority] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  console.log(todos)
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editPriority, setEditPriority] = useState("");
 
   // Fetch tasks from API
   const fetchTodos = async () => {
@@ -86,11 +88,49 @@ function Home() {
     }
   };
 
+  const handleEdit = (todo: TodoItem) => {
+    setEditId(todo.id);
+    setEditTitle(todo.title);
+    setEditPriority(String(todo.priority));
+  };
+
+  const handleEditCancel = () => {
+    setEditId(null);
+    setEditTitle("");
+    setEditPriority("");
+  };
+
+  const handleEditSave = async (id: number) => {
+    const prio = parseInt(editPriority, 10);
+    if (!editTitle.trim() || !editPriority || isNaN(prio) || prio <= 0) {
+      setError("Please enter a valid title and a positive integer priority.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: editTitle, priority: prio }),
+      });
+      if (!res.ok) throw new Error("Failed to update task");
+      setEditId(null);
+      setEditTitle("");
+      setEditPriority("");
+      await fetchTodos();
+    } catch (err: any) {
+      setError(err.message || "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const sortedTodos = [...todos].sort((a, b) => a.priority - b.priority);
   const missingPriorities = getMissingPriorities(todos);
 
   return (
-    <main className="max-w-xl mx-auto mt-10 p-6">
+    <main className="max-w-4xl w-full mx-auto mt-10 p-10">
       <h1 className="text-3xl font-bold mb-6 text-center text-blue-700">Startup TODO List</h1>
 
       <form onSubmit={handleAdd} className="flex gap-2 mb-8 flex-wrap">
@@ -125,18 +165,74 @@ function Home() {
           <ul>
             {sortedTodos.map((todo) => (
               <li key={todo.id} className="todo-card">
-                <span>
-                  <span className="priority-badge">{todo.priority}</span>
-                  {todo.title}
-                </span>
-                <button
-                  className="delete-btn"
-                  onClick={() => handleDelete(todo.id)}
-                  aria-label={`Delete ${todo.title}`}
-                  disabled={loading}
-                >
-                  Delete
-                </button>
+                {editId === todo.id ? (
+                  <>
+                    <input
+                      className="flex-1 mr-2 border px-2 py-1 rounded"
+                      type="text"
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      disabled={loading}
+                      required
+                      style={{ minWidth: 120 }}
+                    />
+                    <input
+                      className="w-20 mr-2 border px-2 py-1 rounded"
+                      type="number"
+                      min={1}
+                      value={editPriority}
+                      onChange={e => setEditPriority(e.target.value)}
+                      disabled={loading}
+                      required
+                    />
+                    <button
+                      className="bg-blue-600 text-white px-3 py-1 rounded mr-2"
+                      onClick={() => handleEditSave(todo.id)}
+                      disabled={loading}
+                      aria-label="Save"
+                      type="button"
+                    >
+                      Save
+                    </button>
+                    <button
+                      className="bg-gray-300 text-gray-800 px-3 py-1 rounded"
+                      onClick={handleEditCancel}
+                      disabled={loading}
+                      aria-label="Cancel"
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span>
+                      <span className="priority-badge">{todo.priority}</span>
+                      {todo.title}
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: 8 }}>
+                      <button
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => handleEdit(todo)}
+                        aria-label={`Edit ${todo.title}`}
+                        disabled={loading}
+                        type="button"
+                        style={{ verticalAlign: "middle" }}
+                      >
+                        <FaPencilAlt size={16} />
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDelete(todo.id)}
+                        aria-label={`Delete ${todo.title}`}
+                        disabled={loading}
+                        type="button"
+                      >
+                        Delete
+                      </button>
+                    </span>
+                  </>
+                )}
               </li>
             ))}
           </ul>
