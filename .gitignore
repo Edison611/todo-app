@@ -1,0 +1,95 @@
+# Node.js
+node_modules/
+.npm/
+.env
+.env.*
+.next/
+.next/cache/
+dist/
+build/
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Ruby/Rails
+backend/log/
+backend/tmp/
+backend/.bundle/
+backend/vendor/bundle/
+backend/.byebug_history
+backend/.env
+backend/.env.*
+backend/.ruby-version
+backend/.ruby-gemset
+backend/db/*.sqlite3
+backend/db/*.sqlite3-journal
+backend/public/assets/
+backend/public/packs/
+backend/public/packs-test/
+backend/node_modules/
+backend/yarn-error.log
+backend/.sass-cache/
+backend/.spring/
+backend/.cache/
+backend/coverage/
+backend/spec/examples.txt
+backend/.rspec_status
+backend/.yardoc
+backend/doc/
+backend/.solargraph.yml
+
+# Mac system files
+*.swp
+*~
+
+# Misc
+*.log
+*.pid
+*.seed
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+
+# Docker
+**/docker-compose.override.yml
+**/docker-compose.local.yml
+**/docker-compose.dev.yml
+**/docker-compose.test.yml
+**/docker-compose.prod.yml
+**/.docker/
+**/Dockerfile*
+
+# Ignore local secrets
+backend/config/credentials.yml.enc
+backend/config/master.key
+
+# Ignore test artifacts
+frontend/coverage/
+frontend/.nyc_output/
+
+# Ignore local storage
+frontend/.next/
+frontend/out/
+frontend/.vercel/
+
+# Ignore editor swap/backup files
+*.swp
+*.swo
+*~
+
+# Ignore Python cache (if any scripts)
+__pycache__/
+*.pyc
