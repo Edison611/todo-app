@@ -1,18 +1,19 @@
 class TasksController < ApplicationController
   def index
-    render json: Task.all
+    tasks = Task.includes(:tag)
+    render json: tasks.as_json(include: :tag)
   end
 
   def show
-    task = Task.find(params[:id])
-    render json: task
+    task = Task.includes(:tag).find(params[:id])
+    render json: task.as_json(include: :tag)
   end
 
   def create
     task = Task.new(task_params)
 
     if task.save
-      render json: task, status: :created
+      render json: task.as_json(include: :tag), status: :created
     else
       render json: task.errors, status: :unprocessable_entity
     end
@@ -22,7 +23,7 @@ class TasksController < ApplicationController
     task = Task.find(params[:id])
 
     if task.update(task_params)
-      render json: task
+      render json: task.as_json(include: :tag)
     else
       render json: task.errors, status: :unprocessable_entity
     end
@@ -36,6 +37,6 @@ class TasksController < ApplicationController
   private
 
   def task_params
-    params.require(:task).permit(:title, :priority)
+    params.require(:task).permit(:title, :priority, :complete, :tag_id)
   end
 end

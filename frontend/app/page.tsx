@@ -7,6 +7,16 @@ export type TodoItem = {
   id: number;
   title: string;
   priority: number;
+  complete: boolean;
+  tag?: {
+    id: number;
+    name: string;
+  } | null;
+};
+
+type Tag = {
+  id: number;
+  name: string;
 };
 
 function getMissingPriorities(todos: TodoItem[]): number[] {
@@ -23,8 +33,11 @@ function getMissingPriorities(todos: TodoItem[]): number[] {
 
 function Home() {
   const [todos, setTodos] = useState<TodoItem[]>([]);
+  const [completedTodos, setCompletedTodos] = useState<TodoItem[]>([]);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("");
+  const [selectedTagId, setSelectedTagId] = useState("");
+  const [tags, setTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
@@ -39,7 +52,9 @@ function Home() {
       const res = await fetch("/api/tasks");
       if (!res.ok) throw new Error("Failed to fetch tasks");
       const data = await res.json();
-      setTodos(Array.isArray(data) ? data : []);
+      const allTodos: TodoItem[] = Array.isArray(data) ? data : [];
+      setTodos(allTodos);
+      setCompletedTodos(allTodos.filter((todo) => todo.complete === true));
     } catch (err: any) {
       setError(err.message || "Unknown error");
     } finally {
@@ -49,7 +64,20 @@ function Home() {
 
   useEffect(() => {
     fetchTodos();
+    fetchTags();
   }, []);
+
+  const fetchTags = async () => {
+    try {
+      const res = await fetch("/api/tags", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch tags");
+      const data = await res.json();
+      const allTags: Tag[] = Array.isArray(data) ? data : [];
+      setTags(allTags);
+    } catch (err: any) {
+      setError(err.message || "Unknown error");
+    }
+  };
 
   const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,14 +86,23 @@ function Home() {
     setLoading(true);
     setError(null);
     try {
+      const payload: { title: string; priority: number; tag_id?: number } = {
+        title,
+        priority: prio,
+      };
+      if (selectedTagId) {
+        payload.tag_id = parseInt(selectedTagId, 10);
+      }
+
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, priority: prio }),
+        body: JSON.stringify(payload),
       });
       if (!res.ok) throw new Error("Failed to add task");
       setTitle("");
       setPriority("");
+      setSelectedTagId("");
       await fetchTodos();
     } catch (err: any) {
       setError(err.message || "Unknown error");
@@ -126,8 +163,30 @@ function Home() {
     }
   };
 
-  const sortedTodos = [...todos].sort((a, b) => a.priority - b.priority);
-  const missingPriorities = getMissingPriorities(todos);
+  const handleComplete = async (todo: TodoItem) => {
+    if (todo.complete) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tasks/${todo.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ complete: true }),
+      });
+      if (!res.ok) throw new Error("Failed to mark task complete");
+      await fetchTodos();
+    } catch (err: any) {
+      setError(err.message || "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const sortedTodos = [...todos]
+    .filter((todo) => todo.complete === false)
+    .sort((a, b) => a.priority - b.priority);
+  
+  const missingPriorities = getMissingPriorities(sortedTodos);
 
   return (
     <main className="max-w-4xl w-full mx-auto mt-10 p-10">
@@ -151,6 +210,22 @@ function Home() {
           onChange={(e) => setPriority(e.target.value)}
           required
         />
+        <select
+          className="w-44 border border-slate-300 rounded-md px-2 py-2 bg-white"
+          value={selectedTagId}
+          onChange={(e) => setSelectedTagId(e.target.value)}
+          disabled={loading}
+        >
+          <option value="">No tag</option>
+          {tags
+            .slice()
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((tag) => (
+              <option key={tag.id} value={tag.id}>
+                {tag.name}
+              </option>
+            ))}
+        </select>
         <button type="submit" disabled={loading}>Add</button>
       </form>
 
@@ -209,8 +284,19 @@ function Home() {
                     <span>
                       <span className="priority-badge">{todo.priority}</span>
                       {todo.title}
+                      {todo.tag?.name ? ` [${todo.tag.name}]` : ""}
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginLeft: 8 }}>
+                      <button
+                        className="text-blue-600 hover:text-blue-800"
+                        onClick={() => handleComplete(todo)}
+                        aria-label={`Edit ${todo.title}`}
+                        disabled={loading}
+                        type="button"
+                        style={{ verticalAlign: "middle" }}
+                      >
+                        Mark as Complete
+                      </button>
                       <button
                         className="text-blue-600 hover:text-blue-800"
                         onClick={() => handleEdit(todo)}
@@ -245,6 +331,27 @@ function Home() {
           <span className="text-gray-700">None 🎉</span>
         ) : (
           <span className="text-gray-700">{missingPriorities.join(", ")}</span>
+        )}
+      </div>
+
+      <div className="mt-8">
+        <h2 className="font-semibold mb-2 text-lg">Completed Todos</h2>
+        {completedTodos.length === 0 ? (
+          <div className="text-gray-700">No completed items yet.</div>
+        ) : (
+          <ul>
+            {completedTodos
+              .slice()
+              .sort((a, b) => a.priority - b.priority)
+              .map((todo) => (
+                <li key={todo.id} className="todo-card opacity-70">
+                  <span>
+                    <span className="priority-badge">{todo.priority}</span>
+                    {todo.title}
+                  </span>
+                </li>
+              ))}
+          </ul>
         )}
       </div>
     </main>
